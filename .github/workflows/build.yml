@@ -1,0 +1,57 @@
+name: Build MediaLog APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Lets you upload the project as one medialog.zip from your phone.
+      - name: Unzip project if uploaded as a zip
+        run: |
+          if [ ! -f pubspec.yaml ] && [ -f medialog.zip ]; then
+            unzip -o -q medialog.zip -d _unzipped
+            if [ -d _unzipped/medialog ]; then cp -r _unzipped/medialog/. .; else cp -r _unzipped/. .; fi
+            rm -rf _unzipped
+          fi
+          ls -la
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Android platform files
+        run: |
+          if [ ! -d android ]; then
+            flutter create --platforms=android --project-name medialog --org com.medialog .
+            rm -f test/widget_test.dart
+          fi
+          sed -i 's/android:label="[^"]*"/android:label="MediaLog"/' android/app/src/main/AndroidManifest.xml
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Analyze (shows code problems)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MediaLog-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          
