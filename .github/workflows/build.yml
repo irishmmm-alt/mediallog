@@ -38,9 +38,12 @@ jobs:
           fi
           sed -i 's/android:label="[^"]*"/android:label="MediaLog"/' android/app/src/main/AndroidManifest.xml
           # Internet permission so the release APK can call the Open Library API.
-          grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml || \
-            sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' android/app/src/main/AndroidManifest.xml
-          head -5 android/app/src/main/AndroidManifest.xml
+          M=android/app/src/main/AndroidManifest.xml
+          if ! grep -q '<uses-permission android:name="android.permission.INTERNET"' "$M"; then
+            sed -i '0,/<application/s##<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$M"
+          fi
+          echo "----- MAIN MANIFEST -----"; cat "$M"
+          grep -q '<uses-permission android:name="android.permission.INTERNET"' "$M" || { echo "INTERNET permission missing!"; exit 1; }
           # Turn off Android lint for release builds (it was crashing the build).
           for f in android/app/build.gradle.kts android/app/build.gradle; do
             if [ -f "$f" ]; then
@@ -69,4 +72,3 @@ jobs:
         with:
           name: MediaLog-apk
           path: build/app/outputs/flutter-apk/*.apk
-          
